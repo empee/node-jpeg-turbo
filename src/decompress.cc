@@ -6,11 +6,18 @@ using namespace node;
 static char errStr[NJT_MSG_LENGTH_MAX] = "No error";
 #define _throw(m) {snprintf(errStr, NJT_MSG_LENGTH_MAX, "%s", m); retval=-1; goto bailout;}
 
-int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, int* width, int* height, uint32_t* dstLength, unsigned char** dstData, uint32_t dstBufferLength) {
+int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t* width, uint32_t* height, uint32_t* dstLength, unsigned char** dstData, uint32_t dstBufferLength) {
   int retval = 0;
   int err;
   tjhandle handle = NULL;
+  tjscalingfactor *sf = NULL;
+  int n = 0;
+  int i;
   int bpp;
+  int header_width = 0;
+  int header_height = 0;
+  uint32_t scaled_width = 0;
+  uint32_t scaled_height = 0;
 
   // Figure out bpp from format (needed to calculate output buffer size)
   switch (format) {
@@ -40,10 +47,34 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, int*
     _throw(tjGetErrorStr());
   }
 
-  err = tjDecompressHeader(handle, srcData, srcLength, width, height);
+  err = tjDecompressHeader(handle, srcData, srcLength, &header_width, &header_height);
 
   if (err != 0) {
     _throw(tjGetErrorStr());
+  }
+
+  // scaling requested
+  if(*width != 0 || *height != 0) {
+    sf = tjGetScalingFactors(&n);
+    if (*width != 0 && *width < (uint32_t)TJSCALED(header_width, sf[n-1])) {
+      _throw("Scaling width too small");
+    }
+    if (*height != 0 && *height < (uint32_t)TJSCALED(header_height, sf[n-1])) {
+      _throw("Scaling height too small");
+    }
+    for(i=0; i<n; i++) {
+      scaled_width = (uint32_t)TJSCALED(header_width, sf[i]);
+      scaled_height = (uint32_t)TJSCALED(header_height, sf[i]);
+      if ((*width == 0 || scaled_width <= *width) && (*height == 0 || scaled_height <= *height)) {
+        break;
+      }
+    }
+    *width = scaled_width;
+    *height = scaled_height;
+  }
+  else {
+    *width = header_width;
+    *height = header_height;
   }
 
   *dstLength = *width * *height * bpp;
@@ -80,15 +111,15 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, int*
 
 class DecompressWorker : public AsyncWorker {
   public:
-    DecompressWorker(Callback *callback, unsigned char* srcData, uint32_t srcLength, uint32_t format, Local<Object> &dstObject, unsigned char* dstData, uint32_t dstBufferLength) :
+    DecompressWorker(Callback *callback, unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t width, uint32_t height, Local<Object> &dstObject, unsigned char* dstData, uint32_t dstBufferLength) :
       AsyncWorker(callback),
       srcData(srcData),
       srcLength(srcLength),
       format(format),
+      width(width),
+      height(height),
       dstData(dstData),
       dstBufferLength(dstBufferLength),
-      width(0),
-      height(0),
       dstLength(0) {
         if (dstBufferLength > 0) {
           SaveToPersistent("dstObject", dstObject);
@@ -144,11 +175,11 @@ class DecompressWorker : public AsyncWorker {
     unsigned char* srcData;
     uint32_t srcLength;
     uint32_t format;
+    uint32_t width;
+    uint32_t height;
 
     unsigned char* dstData;
     uint32_t dstBufferLength;
-    int width;
-    int height;
     uint32_t dstLength;
 };
 
@@ -164,13 +195,15 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
   Local<Object> options;
   Local<Value> formatObject;
   uint32_t format = NJT_DEFAULT_FORMAT;
+  Local<Value> widthObject;
+  Local<Value> heightObject;
 
   // Output
   Local<Object> dstObject;
   uint32_t dstBufferLength = 0;
   unsigned char* dstData = NULL;
-  int width;
-  int height;
+  uint32_t width = 0;
+  uint32_t height = 0;
   uint32_t dstLength;
 
   // Try to find callback here, so if we want to throw something we can use callback's err
@@ -218,11 +251,29 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
       }
       format = formatObject->Uint32Value();
     }
+
+    // (scaling) width
+    widthObject = options->Get(New("width").ToLocalChecked());
+    if (!widthObject->IsUndefined()) {
+      if (!widthObject->IsUint32()) {
+        _throw("Invalid scaling width");
+      }
+      width = widthObject->Uint32Value();
+    }
+
+    // (scaling) height
+    heightObject = options->Get(New("height").ToLocalChecked());
+    if (!heightObject->IsUndefined()) {
+      if (!heightObject->IsUint32()) {
+        _throw("Invalid scaling height");
+      }
+      height = heightObject->Uint32Value();
+    }
   }
 
   // Do either async or sync decompress
   if (async) {
-    AsyncQueueWorker(new DecompressWorker(callback, srcData, srcLength, format, dstObject, dstData, dstBufferLength));
+    AsyncQueueWorker(new DecompressWorker(callback, srcData, srcLength, format, width, height, dstObject, dstData, dstBufferLength));
     return;
   }
   else {
