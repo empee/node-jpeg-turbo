@@ -6,18 +6,28 @@ using namespace node;
 static char errStr[NJT_MSG_LENGTH_MAX] = "No error";
 #define _throw(m) {snprintf(errStr, NJT_MSG_LENGTH_MAX, "%s", m); retval=-1; goto bailout;}
 
-int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t* width, uint32_t* height, uint32_t* dstLength, unsigned char** dstData, uint32_t dstBufferLength) {
+int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t* width, uint32_t* height, njt_crop* crop, uint32_t* dstLength, unsigned char** dstData, uint32_t dstBufferLength) {
   int retval = 0;
   int err;
   tjhandle handle = NULL;
+  int bpp;
+
+  // resize variables
   tjscalingfactor *sf = NULL;
   int n = 0;
   int i;
-  int bpp;
   int header_width = 0;
   int header_height = 0;
   uint32_t scaled_width = 0;
   uint32_t scaled_height = 0;
+
+  // crop variables
+  bool have_crop = false;
+  unsigned char *crop_dstBufs[1];
+  unsigned long crop_dstSizes[1];
+  tjtransform transforms[1];
+  tjregion rect;
+  int jpegSubsamp = 0;
 
   // Figure out bpp from format (needed to calculate output buffer size)
   switch (format) {
@@ -42,14 +52,81 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       _throw("Invalid output format");
   }
 
-  handle = tjInitDecompress();
-  if (handle == NULL) {
+  // init crop if we have it
+  if (crop->x > 0 || crop->y > 0 || crop->width > 0 || crop->height > 0) {
+    handle = tjInitTransform();
+    have_crop = true;
+  }
+
+  err = tjDecompressHeader2(handle, srcData, srcLength, &header_width, &header_height, &jpegSubsamp);
+
+  if (err != 0) {
     _throw(tjGetErrorStr());
   }
 
-  err = tjDecompressHeader(handle, srcData, srcLength, &header_width, &header_height);
+  // do cropping
+  if (have_crop) {
+    if (crop->x > 0) {
+      crop->mcu_x = crop->x - crop->x % tjMCUWidth[jpegSubsamp];
+    }
+    else {
+      crop->mcu_x = 0;
+    }
 
-  if (err != 0) {
+    if (crop->width > 0) {
+      crop->mcu_w = crop->width + (crop->width + crop->x % tjMCUWidth[jpegSubsamp]) % tjMCUWidth[jpegSubsamp];
+      header_width = crop->mcu_w;
+    }
+    else {
+      if (crop->mcu_x > 0) {
+        header_width = header_width - crop->mcu_x;
+      }
+      crop->mcu_w = 0;
+    }
+
+    if (crop->y > 0) {
+      crop->mcu_y = crop->y - crop->y % tjMCUHeight[jpegSubsamp];
+    }
+    else {
+      crop->mcu_y = 0;
+    }
+
+    if (crop->height > 0) {
+      crop->mcu_h = crop->height + (crop->height + crop->y % tjMCUHeight[jpegSubsamp]) % tjMCUHeight[jpegSubsamp];
+      header_height = crop->mcu_h;
+    }
+    else {
+      if (crop->mcu_y > 0) {
+        header_height = header_height - crop->mcu_y;
+      }
+      crop->mcu_h = 0;
+    }
+
+    rect = (tjregion) { static_cast<int>(crop->mcu_x), static_cast<int>(crop->mcu_y), static_cast<int>(crop->mcu_w), static_cast<int>(crop->mcu_h) };
+    transforms[0] = (tjtransform) { rect, TJXOP_NONE, TJXOPT_CROP, NULL, NULL };
+    crop_dstBufs[0] = NULL;
+    crop_dstSizes[0] = 0;
+
+    err = tjTransform(handle, srcData, srcLength, 1, crop_dstBufs, crop_dstSizes, transforms, 0);
+
+    if (err != 0) {
+      _throw(tjGetErrorStr());
+    }
+
+    memcpy(srcData, crop_dstBufs[0], crop_dstSizes[0]);
+
+    tjFree(crop_dstBufs[0]);
+
+    err = tjDestroy(handle);
+    if (err != 0) {
+      _throw(tjGetErrorStr());
+    }
+  }
+
+  // decompress
+  handle = tjInitDecompress();
+
+  if (handle == NULL) {
     _throw(tjGetErrorStr());
   }
 
@@ -94,6 +171,8 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
     _throw(tjGetErrorStr());
   }
 
+  // accurate crop goes here
+
 
   bailout:
   if (handle != NULL) {
@@ -111,13 +190,14 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
 
 class DecompressWorker : public AsyncWorker {
   public:
-    DecompressWorker(Callback *callback, unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t width, uint32_t height, Local<Object> &dstObject, unsigned char* dstData, uint32_t dstBufferLength) :
+    DecompressWorker(Callback *callback, unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t width, uint32_t height, njt_crop crop, Local<Object> &dstObject, unsigned char* dstData, uint32_t dstBufferLength) :
       AsyncWorker(callback),
       srcData(srcData),
       srcLength(srcLength),
       format(format),
       width(width),
       height(height),
+      crop(crop),
       dstData(dstData),
       dstBufferLength(dstBufferLength),
       dstLength(0) {
@@ -137,6 +217,7 @@ class DecompressWorker : public AsyncWorker {
           this->format,
           &this->width,
           &this->height,
+          &this->crop,
           &this->dstLength,
           &this->dstData,
           this->dstBufferLength);
@@ -177,6 +258,7 @@ class DecompressWorker : public AsyncWorker {
     uint32_t format;
     uint32_t width;
     uint32_t height;
+    njt_crop crop;
 
     unsigned char* dstData;
     uint32_t dstBufferLength;
@@ -197,6 +279,13 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
   uint32_t format = NJT_DEFAULT_FORMAT;
   Local<Value> widthObject;
   Local<Value> heightObject;
+  njt_crop crop;
+  Local<Object> cropObject;
+  Local<Value> cropXObject;
+  Local<Value> cropWidthObject;
+  Local<Value> cropYObject;
+  Local<Value> cropHeightObject;
+  Local<Value> cropPreciseObject;
 
   // Output
   Local<Object> dstObject;
@@ -269,11 +358,62 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
       }
       height = heightObject->Uint32Value();
     }
+
+    // crop
+    cropObject = options->Get(New("crop").ToLocalChecked()).As<Object>();
+    if (!cropObject->IsUndefined()) {
+      if (!cropObject->IsObject()) {
+        _throw("Crop must be an object");
+      }
+
+      // set default values
+      crop.x = 0;
+      crop.y = 0;
+      crop.width = 0;
+      crop.height = 0;
+      crop.precise = false;
+
+      cropXObject = cropObject->Get(New("x").ToLocalChecked());
+      if (!cropXObject->IsUndefined()) {
+        if (!cropXObject->IsUint32()) {
+          _throw("Invalid crop.x");
+        }
+        crop.x = cropXObject->Uint32Value();
+      }
+      cropYObject = cropObject->Get(New("y").ToLocalChecked());
+      if (!cropYObject->IsUndefined()) {
+        if (!cropYObject->IsUint32()) {
+          _throw("Invalid crop.y");
+        }
+        crop.y = cropYObject->Uint32Value();
+      }
+      cropWidthObject = cropObject->Get(New("width").ToLocalChecked());
+      if (!cropWidthObject->IsUndefined()) {
+        if (!cropWidthObject->IsUint32()) {
+          _throw("Invalid crop.width");
+        }
+        crop.width = cropWidthObject->Uint32Value();
+      }
+      cropHeightObject = cropObject->Get(New("height").ToLocalChecked());
+      if (!cropHeightObject->IsUndefined()) {
+        if (!cropHeightObject->IsUint32()) {
+          _throw("Invalid crop.height");
+        }
+        crop.height = cropHeightObject->Uint32Value();
+      }
+      cropPreciseObject = cropObject->Get(New("precise").ToLocalChecked());
+      if (!cropPreciseObject->IsUndefined()) {
+        if (!cropPreciseObject->IsBoolean()) {
+          _throw("Invalid crop.precise");
+        }
+        crop.precise = cropPreciseObject->BooleanValue();
+      }
+    }
   }
 
   // Do either async or sync decompress
   if (async) {
-    AsyncQueueWorker(new DecompressWorker(callback, srcData, srcLength, format, width, height, dstObject, dstData, dstBufferLength));
+    AsyncQueueWorker(new DecompressWorker(callback, srcData, srcLength, format, width, height, crop, dstObject, dstData, dstBufferLength));
     return;
   }
   else {
@@ -283,6 +423,7 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
         format,
         &width,
         &height,
+        &crop,
         &dstLength,
         &dstData,
         dstBufferLength);

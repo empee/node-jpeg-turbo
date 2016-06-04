@@ -39,6 +39,18 @@ enum {
   SAMP_440  = TJSAMP_440,
 };
 
+typedef struct {
+  uint32_t x;
+  uint32_t y;
+  uint32_t width;
+  uint32_t height;
+  uint32_t mcu_x;
+  uint32_t mcu_w;
+  uint32_t mcu_y;
+  uint32_t mcu_h;
+  bool precise;
+} njt_crop;
+
 NAN_METHOD(BufferSize);
 NAN_METHOD(CompressSync);
 NAN_METHOD(Compress);
