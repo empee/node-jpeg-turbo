@@ -101,8 +101,15 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       crop->height = header_height - crop->y;
     }
 
-    rect = (tjregion) { static_cast<int>(crop->mcu_x), static_cast<int>(crop->mcu_y), static_cast<int>(crop->mcu_w), static_cast<int>(crop->mcu_h) };
-    transforms[0] = (tjtransform) { rect, TJXOP_NONE, TJXOPT_CROP, NULL, NULL };
+    rect.x = (int)crop->mcu_x;
+    rect.y = (int)crop->mcu_y;
+    rect.w = (int)crop->mcu_w;
+    rect.h = (int)crop->mcu_h;
+    transforms[0].r = rect;
+    transforms[0].op = TJXOP_NONE;
+    transforms[0].options = TJXOPT_CROP;
+    transforms[0].data = NULL;
+    transforms[0].customFilter = NULL;
     crop_dstBufs[0] = NULL;
     crop_dstSizes[0] = 0;
 
