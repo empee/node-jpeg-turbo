@@ -24,10 +24,15 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
   // crop variables
   bool have_crop = false;
   unsigned char *crop_dstBufs[1];
+  unsigned char *crop_buffer;
+  unsigned char *src_buffer;
   unsigned long crop_dstSizes[1];
   tjtransform transforms[1];
   tjregion rect;
   int jpegSubsamp = 0;
+  int rowLength = 0;
+  int cropRowLength = 0;
+  int offset = 0;
 
   // Figure out bpp from format (needed to calculate output buffer size)
   switch (format) {
@@ -78,6 +83,12 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       header_width = crop->mcu_w;
     }
     else {
+      if (crop->x > 0) {
+        crop->width = header_width - crop->x;
+      }
+      else {
+        crop->width = header_width;
+      }
       if (crop->mcu_x > 0) {
         header_width = header_width - crop->mcu_x;
       }
@@ -96,6 +107,12 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       header_height = crop->mcu_h;
     }
     else {
+      if (crop->y > 0) {
+        crop->height = header_height - crop->y;
+      }
+      else {
+        crop->height = header_height;
+      }
       if (crop->mcu_y > 0) {
         header_height = header_height - crop->mcu_y;
       }
@@ -171,7 +188,31 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
     _throw(tjGetErrorStr());
   }
 
-  // accurate crop goes here
+  // Precise cropping
+  if (have_crop && crop->precise) {
+    rowLength = *width * bpp;
+    cropRowLength = crop->width * bpp;
+    offset = (crop->x - crop->mcu_x) * bpp;
+
+    *width = crop->width;
+    *height = crop->height;
+    *dstLength = *width * *height * bpp;
+    crop_dstBufs[0] = (unsigned char*)malloc(*dstLength);
+    crop_buffer = crop_dstBufs[0];
+
+    src_buffer = *dstData + (crop->y - crop->mcu_y) * rowLength;
+    for (i = 0; i < (int)crop->height; i++) {
+      memcpy(crop_buffer, src_buffer + offset, cropRowLength);
+      src_buffer += rowLength;
+      crop_buffer += cropRowLength;
+    }
+    if (dstBufferLength <= 0) {
+      free(*dstData);
+      *dstData = (unsigned char*)malloc(*dstLength);
+    }
+    memcpy(*dstData, crop_dstBufs[0], *dstLength);
+    free(crop_dstBufs[0]);
+  }
 
 
   bailout:
