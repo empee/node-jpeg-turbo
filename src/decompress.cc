@@ -61,6 +61,10 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
   if (crop->x > 0 || crop->y > 0 || crop->width > 0 || crop->height > 0) {
     handle = tjInitTransform();
     have_crop = true;
+    crop->mcu_x = 0;
+    crop->mcu_y = 0;
+    crop->mcu_w = 0;
+    crop->mcu_h = 0;
   }
 
   err = tjDecompressHeader2(handle, srcData, srcLength, &header_width, &header_height, &jpegSubsamp);
@@ -73,9 +77,7 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
   if (have_crop) {
     if (crop->x > 0) {
       crop->mcu_x = crop->x - crop->x % tjMCUWidth[jpegSubsamp];
-    }
-    else {
-      crop->mcu_x = 0;
+      header_width = header_width - crop->mcu_x;
     }
 
     if (crop->width > 0) {
@@ -83,23 +85,12 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       header_width = crop->mcu_w;
     }
     else {
-      if (crop->x > 0) {
-        crop->width = header_width - crop->x;
-      }
-      else {
-        crop->width = header_width;
-      }
-      if (crop->mcu_x > 0) {
-        header_width = header_width - crop->mcu_x;
-      }
-      crop->mcu_w = 0;
+      crop->width = header_width - crop->x;
     }
 
     if (crop->y > 0) {
       crop->mcu_y = crop->y - crop->y % tjMCUHeight[jpegSubsamp];
-    }
-    else {
-      crop->mcu_y = 0;
+      header_height = header_height - crop->mcu_y;
     }
 
     if (crop->height > 0) {
@@ -107,16 +98,7 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       header_height = crop->mcu_h;
     }
     else {
-      if (crop->y > 0) {
-        crop->height = header_height - crop->y;
-      }
-      else {
-        crop->height = header_height;
-      }
-      if (crop->mcu_y > 0) {
-        header_height = header_height - crop->mcu_y;
-      }
-      crop->mcu_h = 0;
+      crop->height = header_height - crop->y;
     }
 
     rect = (tjregion) { static_cast<int>(crop->mcu_x), static_cast<int>(crop->mcu_y), static_cast<int>(crop->mcu_w), static_cast<int>(crop->mcu_h) };
