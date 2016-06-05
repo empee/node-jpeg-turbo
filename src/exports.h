@@ -42,14 +42,24 @@ enum {
 typedef struct {
   uint32_t x;
   uint32_t y;
-  uint32_t w;
-  uint32_t h;
+  int32_t w;
+  int32_t h;
   uint32_t mcu_x;
   uint32_t mcu_w;
   uint32_t mcu_y;
   uint32_t mcu_h;
   bool precise;
 } njt_crop;
+
+enum {
+  SCALE_FAST = 0,
+  SCALE_NEAREST = 1,
+  SCALE_BILINEAR = 2,
+  SCALE_BICUBIC = 3
+};
+
+int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint32_t* width, uint32_t* height, uint32_t scale_mode, njt_crop* crop, uint32_t* dstLength, unsigned char** dstData, uint32_t dstBufferLength);
+int scale(unsigned char* image, uint32_t scale_mode, int w, int h, int s_w, int s_h, int bpp);
 
 NAN_METHOD(BufferSize);
 NAN_METHOD(CompressSync);

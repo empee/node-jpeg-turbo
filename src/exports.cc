@@ -27,6 +27,10 @@ NAN_MODULE_INIT(InitAll) {
   Nan::Set(target, Nan::New("SAMP_420").ToLocalChecked(), Nan::New(SAMP_420));
   Nan::Set(target, Nan::New("SAMP_GRAY").ToLocalChecked(), Nan::New(SAMP_GRAY));
   Nan::Set(target, Nan::New("SAMP_440").ToLocalChecked(), Nan::New(SAMP_440));
+  Nan::Set(target, Nan::New("SCALE_FAST").ToLocalChecked(), Nan::New(SCALE_FAST));
+  Nan::Set(target, Nan::New("SCALE_NEAREST").ToLocalChecked(), Nan::New(SCALE_NEAREST));
+  Nan::Set(target, Nan::New("SCALE_BILINEAR").ToLocalChecked(), Nan::New(SCALE_BILINEAR));
+  Nan::Set(target, Nan::New("SCALE_BICUBIC").ToLocalChecked(), Nan::New(SCALE_BICUBIC));
 }
 
 // There is no semi-colon after NODE_MODULE as it's not a function (see node.h).
