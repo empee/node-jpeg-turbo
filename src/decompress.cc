@@ -251,11 +251,10 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       scaled_width = header_width;
       scaled_height = header_height;
 
-      if (scaled_width > *width) {
-        ratio = (float)*width / scaled_width;
-        scaled_width = *width;
-        scaled_height *= ratio;
-      }
+      ratio = (float)*width / scaled_width;
+      scaled_width = *width;
+      scaled_height *= ratio;
+
       if (scaled_height > *height) {
         ratio = (float)*height / scaled_height;
         scaled_width = header_width * ratio;
