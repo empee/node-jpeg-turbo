@@ -77,28 +77,26 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
   if (have_crop) {
     if (crop->x > 0) {
       crop->mcu_x = crop->x - crop->x % tjMCUWidth[jpegSubsamp];
-      header_width = header_width - crop->mcu_x;
     }
 
     if (crop->width > 0) {
       crop->mcu_w = crop->width + (crop->width + crop->x % tjMCUWidth[jpegSubsamp]) % tjMCUWidth[jpegSubsamp];
-      header_width = crop->mcu_w;
     }
     else {
-      crop->width = header_width - crop->x;
+      crop->mcu_w = header_width - crop->mcu_x;
+      crop->width = crop->mcu_w - (crop->x - crop->mcu_x);
     }
 
     if (crop->y > 0) {
       crop->mcu_y = crop->y - crop->y % tjMCUHeight[jpegSubsamp];
-      header_height = header_height - crop->mcu_y;
     }
 
     if (crop->height > 0) {
       crop->mcu_h = crop->height + (crop->height + crop->y % tjMCUHeight[jpegSubsamp]) % tjMCUHeight[jpegSubsamp];
-      header_height = crop->mcu_h;
     }
     else {
-      crop->height = header_height - crop->y;
+      crop->mcu_h = header_height - crop->mcu_y;
+      crop->height = crop->mcu_h - (crop->y - crop->mcu_y);
     }
 
     rect.x = (int)crop->mcu_x;
@@ -123,6 +121,8 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
 
     tjFree(crop_dstBufs[0]);
     srcLength = crop_dstSizes[0];
+    header_width = crop->mcu_w;
+    header_height = crop->mcu_h;
 
     err = tjDestroy(handle);
     if (err != 0) {
