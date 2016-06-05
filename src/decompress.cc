@@ -122,6 +122,7 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
     memcpy(srcData, crop_dstBufs[0], crop_dstSizes[0]);
 
     tjFree(crop_dstBufs[0]);
+    srcLength = crop_dstSizes[0];
 
     err = tjDestroy(handle);
     if (err != 0) {
