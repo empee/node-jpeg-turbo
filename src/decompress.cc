@@ -57,46 +57,43 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
       _throw("Invalid output format");
   }
 
-  // init crop if we have it
-  if (crop->x > 0 || crop->y > 0 || crop->width > 0 || crop->height > 0) {
+  // Init and do MCU crop
+  if (crop->x > 0 || crop->y > 0 || crop->w > 0 || crop->h > 0) {
     handle = tjInitTransform();
     have_crop = true;
     crop->mcu_x = 0;
     crop->mcu_y = 0;
     crop->mcu_w = 0;
     crop->mcu_h = 0;
-  }
 
-  err = tjDecompressHeader2(handle, srcData, srcLength, &header_width, &header_height, &jpegSubsamp);
+    err = tjDecompressHeader2(handle, srcData, srcLength, &header_width, &header_height, &jpegSubsamp);
 
-  if (err != 0) {
-    _throw(tjGetErrorStr());
-  }
+    if (err != 0) {
+      _throw(tjGetErrorStr());
+    }
 
-  // do cropping
-  if (have_crop) {
     if (crop->x > 0) {
       crop->mcu_x = crop->x - crop->x % tjMCUWidth[jpegSubsamp];
     }
 
-    if (crop->width > 0) {
-      crop->mcu_w = crop->width + (crop->width + crop->x % tjMCUWidth[jpegSubsamp]) % tjMCUWidth[jpegSubsamp];
+    if (crop->w > 0) {
+      crop->mcu_w = crop->w + (crop->w + crop->x % tjMCUWidth[jpegSubsamp]) % tjMCUWidth[jpegSubsamp];
     }
     else {
       crop->mcu_w = header_width - crop->mcu_x;
-      crop->width = crop->mcu_w - (crop->x - crop->mcu_x);
+      crop->w = crop->mcu_w - (crop->x - crop->mcu_x);
     }
 
     if (crop->y > 0) {
       crop->mcu_y = crop->y - crop->y % tjMCUHeight[jpegSubsamp];
     }
 
-    if (crop->height > 0) {
-      crop->mcu_h = crop->height + (crop->height + crop->y % tjMCUHeight[jpegSubsamp]) % tjMCUHeight[jpegSubsamp];
+    if (crop->h > 0) {
+      crop->mcu_h = crop->h + (crop->h + crop->y % tjMCUHeight[jpegSubsamp]) % tjMCUHeight[jpegSubsamp];
     }
     else {
       crop->mcu_h = header_height - crop->mcu_y;
-      crop->height = crop->mcu_h - (crop->y - crop->mcu_y);
+      crop->h = crop->mcu_h - (crop->y - crop->mcu_y);
     }
 
     rect.x = (int)crop->mcu_x;
@@ -130,14 +127,22 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
     }
   }
 
-  // decompress
+  // Init decompress
   handle = tjInitDecompress();
-
   if (handle == NULL) {
     _throw(tjGetErrorStr());
   }
 
-  // scaling requested
+  // If we didn't do crop, we wont have header here
+  if (!have_crop) {
+    err = tjDecompressHeader2(handle, srcData, srcLength, &header_width, &header_height, &jpegSubsamp);
+
+    if (err != 0) {
+      _throw(tjGetErrorStr());
+    }
+  }
+
+  // Scaling requested, do fast but imprecise scaling with libturbo-jpeg
   if(*width != 0 || *height != 0) {
     sf = tjGetScalingFactors(&n);
     if (*width != 0 && *width < (uint32_t)TJSCALED(header_width, sf[n-1])) {
@@ -180,18 +185,32 @@ int decompress(unsigned char* srcData, uint32_t srcLength, uint32_t format, uint
 
   // Precise cropping
   if (have_crop && crop->precise) {
+
+    // If we did scaling, we need to fix all our coordinates
+    if (scaled_width > 0 || scaled_height > 0) {
+      crop->x = (uint32_t)TJSCALED(crop->x, sf[i]);
+      crop->w = (uint32_t)TJSCALED(crop->w, sf[i]);
+      crop->y = (uint32_t)TJSCALED(crop->y, sf[i]);
+      crop->h = (uint32_t)TJSCALED(crop->h, sf[i]);
+
+      crop->mcu_x = (uint32_t)TJSCALED(crop->mcu_x, sf[i]);
+      crop->mcu_w = (uint32_t)TJSCALED(crop->mcu_w, sf[i]);
+      crop->mcu_y = (uint32_t)TJSCALED(crop->mcu_y, sf[i]);
+      crop->mcu_h = (uint32_t)TJSCALED(crop->mcu_h, sf[i]);
+    }
+
     rowLength = *width * bpp;
-    cropRowLength = crop->width * bpp;
+    cropRowLength = crop->w * bpp;
     offset = (crop->x - crop->mcu_x) * bpp;
 
-    *width = crop->width;
-    *height = crop->height;
+    *width = crop->w;
+    *height = crop->h;
     *dstLength = *width * *height * bpp;
     crop_dstBufs[0] = (unsigned char*)malloc(*dstLength);
     crop_buffer = crop_dstBufs[0];
 
     src_buffer = *dstData + (crop->y - crop->mcu_y) * rowLength;
-    for (i = 0; i < (int)crop->height; i++) {
+    for (i = 0; i < (int)crop->h; i++) {
       memcpy(crop_buffer, src_buffer + offset, cropRowLength);
       src_buffer += rowLength;
       crop_buffer += cropRowLength;
@@ -310,7 +329,7 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
   uint32_t format = NJT_DEFAULT_FORMAT;
   Local<Value> widthObject;
   Local<Value> heightObject;
-  njt_crop crop;
+  njt_crop crop = { .x = 0, .y = 0, .width = 0, .height = 0, .precise = false };
   Local<Object> cropObject;
   Local<Value> cropXObject;
   Local<Value> cropWidthObject;
@@ -397,13 +416,6 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
         _throw("Crop must be an object");
       }
 
-      // set default values
-      crop.x = 0;
-      crop.y = 0;
-      crop.width = 0;
-      crop.height = 0;
-      crop.precise = false;
-
       cropXObject = cropObject->Get(New("x").ToLocalChecked());
       if (!cropXObject->IsUndefined()) {
         if (!cropXObject->IsUint32()) {
@@ -423,14 +435,14 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
         if (!cropWidthObject->IsUint32()) {
           _throw("Invalid crop.width");
         }
-        crop.width = cropWidthObject->Uint32Value();
+        crop.w = cropWidthObject->Uint32Value();
       }
       cropHeightObject = cropObject->Get(New("height").ToLocalChecked());
       if (!cropHeightObject->IsUndefined()) {
         if (!cropHeightObject->IsUint32()) {
           _throw("Invalid crop.height");
         }
-        crop.height = cropHeightObject->Uint32Value();
+        crop.h = cropHeightObject->Uint32Value();
       }
       cropPreciseObject = cropObject->Get(New("precise").ToLocalChecked());
       if (!cropPreciseObject->IsUndefined()) {
