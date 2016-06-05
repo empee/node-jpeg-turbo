@@ -469,7 +469,8 @@ void decompressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
   uint32_t scale_mode = SCALE_FAST;
   Local<Value> aspectObject;
   bool keep_aspect = true;
-  njt_crop crop = { .x = 0, .y = 0, .w = 0, .h = 0, .precise = false };
+  njt_crop crop;
+  crop.x = 0; crop.y = 0; crop.w = 0; crop.h = 0; crop.precise = false;
   Local<Object> cropObject;
   Local<Value> cropXObject;
   Local<Value> cropWidthObject;
