@@ -1,0 +1,69 @@
+[
+  {
+    "name": "Invalid input",
+    "params": { "input": "string" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Too few arguments" }
+  },
+  {
+    "name": "Empty input",
+    "params": { "input": "emptyBuffer", "options": { "width": 1024, "height": 128, "format": "DEFAULT_FORMAT" } },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Input buffer too small" }
+  },
+  {
+    "name": "Invalid options",
+    "params": { "input": "raw-jahne", "options": "string" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Options must be an object" }
+  },
+  {
+    "name": "Valid input, no options",
+    "params": { "input": "raw-jahne" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Too few arguments"}
+  },
+  {
+    "name": "Valid input, invalid options",
+    "params": { "input": "raw-jahne", "options": { "width": 4096, "height": 2048 } },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Input buffer too small" }
+  },
+  {
+    "name": "Valid input, some options, invalid output",
+    "params": { "input": "raw-jahne", "options": { "width": 1024, "height": 1024 }, "output": "string" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Options must be an object" }
+  },
+  {
+    "name": "Valid input, some options, output buffer small",
+    "params": { "input": "raw-jahne", "options": { "width": 1024, "height": 1024 }, "output": "small" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Output buffer too small" }
+  },
+  {
+    "name": "Valid input, some options",
+    "params": { "input": "raw-jahne", "options": { "width": 1024 } },
+    "successReturn": { "subsampling": "DEFAULT_SUBSAMPLING" },
+    "failReason": null
+  },
+  {
+    "name": "Valid input, some options, output buffer medium",
+    "params": { "input": "raw-jahne", "options": { "width": 1024, "height": 1024 }, "output": "exact" },
+    "successReturn": { "subsampling": "DEFAULT_SUBSAMPLING" },
+    "failReason": null
+  },
+  {
+    "name": "Valid input, some options, output buffer large",
+    "params": { "input": "raw-jahne", "options": { "width": 1024, "height": 1024 }, "output": "large" },
+    "successReturn": { "subsampling": "DEFAULT_SUBSAMPLING" },
+    "failReason": null
+  },
+  {
+    "name": "Valid input, all options",
+    "params": { "input": "raw-jahne", "options": { "width": 512, "height": 1024, "format": "FORMAT_RGBA", "pitch": 1024, "subsampling": "SAMP_444" } },
+    "successReturn": { "subsampling": "SAMP_444" },
+    "failReason": null
+  }
+]
+

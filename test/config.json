@@ -1,0 +1,22 @@
+{
+  "formats": [
+    "FORMAT_RGBA",
+    "FORMAT_RGB",
+    "FORMAT_GRAY"
+  ],
+  "scalers": [
+    "SCALE_FAST",
+    "SCALE_NEAREST",
+    "SCALE_BILINEAR",
+    "SCALE_BICUBIC"
+  ],
+  "tests": {
+    "decompress": {
+      "init": "tests/decompress-init.json",
+      "crop": "tests/decompress-crop.json"
+    },
+    "compress": "tests/compress.json",
+    "scale": "tests/scale.json",
+    "crop": "tests/crop.json"
+  }
+}

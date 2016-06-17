@@ -1,0 +1,102 @@
+[
+  {
+    "params": {},
+    "successReturn": {
+      "*": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "y": 1024 },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Crop: y out of bounds" }
+  },
+  {
+    "params": { "x": 1024, "y": 1024 },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Crop: x out of bounds" }
+  },
+  {
+    "params": { "width": -1024 },
+    "successReturn": {
+      "precise": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } },
+      "*": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "width": 1024 },
+    "successReturn": {
+      "precise": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } },
+      "*": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "width": 600, "height": 600 },
+    "successReturn": {
+      "*": { "width": 600, "height": 600, "coordinates": { "left": 0, "right": 0, "top": 0, "bottom": 0, "blocks": { "x": [0, 9], "y": [0, 9] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "x": 71, "y": 243, "width": 555, "height": 333 },
+    "successReturn": {
+      "precise": { "width": 555, "height": 333, "coordinates": { "left": 49, "right": 26, "top": 57, "bottom": 36, "blocks": { "x": [2, 9], "y": [4, 8] } } },
+      "*": { "width": 562, "height": 336, "coordinates": { "left": 56, "right": 26, "top": 0, "bottom": 36, "blocks": { "x": [1, 9], "y": [4, 8] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "width": 256 },
+    "successReturn": {
+      "*": { "width": 256, "height": 1024, "coordinates": { "left": 0, "right": 16, "top": 0, "bottom": 4, "blocks": { "x": [0, 3], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "x": 128 },
+    "successReturn": {
+      "*": { "width": 896, "height": 1024, "coordinates": { "left": 52, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [3, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "x": 896, "width": 256 },
+    "successReturn": {
+      "*": { "width": 128, "height": 1024, "coordinates": { "left": 4, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [15, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "width": -128, "height": -192 },
+    "successReturn": {
+      "*": { "width": 896, "height": 832, "coordinates": { "left": 0, "right": 56, "top": 0, "bottom": 52, "blocks": { "x": [0, 13], "y": [0, 12] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "x": 10 },
+    "successReturn": {
+      "precise": { "width": 1014, "height": 1024, "coordinates": { "left": 50, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [1, 16], "y": [0, 16] } } },
+      "*": { "width": 1016, "height": 1024, "coordinates": { "left": 52, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [1, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "x": 120, "y": 510, "width": -10, "height": -510 },
+    "successReturn": {
+      "precise": { "width": 894, "height": 4, "coordinates": { "blocks": { "x": [], "y": [] } } },
+      "*": { "width": 894, "height": 10, "coordinates": { "blocks": { "x": [], "y": [] } } }
+    },
+    "failReason": null
+  },
+  {
+    "params": { "width": -1024 },
+    "successReturn": {
+      "precise": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } },
+      "*": { "width": 1024, "height": 1024, "coordinates": { "left": 0, "right": 4, "top": 0, "bottom": 4, "blocks": { "x": [0, 16], "y": [0, 16] } } }
+    },
+    "failReason": null
+  }
+]

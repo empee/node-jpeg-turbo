@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Invalid input",
+    "params": { "input": "string" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Invalid source buffer" }
+  },
+  {
+    "name": "Empty input",
+    "params": { "input": "emptyBuffer" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Not a JPEG file: starts with 0x00 0x00" }
+  },
+  {
+    "name": "Invalid options",
+    "params": { "input": "compressed-jahne", "options": "string" },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Options must be an object" }
+  },
+  {
+    "name": "Valid input, no options",
+    "params": { "input": "compressed-jahne" },
+    "successReturn": { "width": 1024, "height": 1024, "format": "DEFAULT_FORMAT" },
+    "failReason": null
+  },
+  {
+    "name": "Valid input",
+    "params": { "input": "compressed-jahne", "options": {} },
+    "successReturn": { "width": 1024, "height": 1024 },
+    "failReason": null
+  },
+  {
+    "name": "Valid input, invalid output buffer",
+    "params": { "input": "compressed-jahne", "output": "string", "options": {} },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Options must be an object" }
+  },
+  {
+    "name": "Valid input, output buffer too small",
+    "params": { "input": "compressed-jahne", "output": "small", "options": {} },
+    "successReturn": null,
+    "failReason": { "type": "Error", "key": "message", "value": "Output buffer too small" }
+  },
+  {
+    "name": "Valid input, output buffer exact size",
+    "params": { "input": "compressed-jahne", "output": "exact", "options": {} },
+    "successReturn": { "width": 1024, "height": 1024 },
+    "failReason": null
+  },
+  {
+    "name": "Valid input, output buffer over size",
+    "params": { "input": "compressed-jahne", "output": "large", "options": {} },
+    "successReturn": { "width": 1024, "height": 1024 },
+    "failReason": null
+  }
+]

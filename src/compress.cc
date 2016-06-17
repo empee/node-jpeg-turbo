@@ -1,77 +1,44 @@
 #include "exports.h"
-using namespace Nan;
-using namespace v8;
-using namespace node;
 
-static char errStr[NJT_MSG_LENGTH_MAX] = "No error";
-#define _throw(m) {snprintf(errStr, NJT_MSG_LENGTH_MAX, "%s", m); retval=-1; goto bailout;}
-
-void compressBufferFreeCallback(char *data, void *hint) {
-  tjFree((unsigned char*) data);
-}
-
-int compress(unsigned char* srcData, uint32_t format, uint32_t width, uint32_t stride, uint32_t height, uint32_t jpegSubsamp, int quality, unsigned long* jpegSize, unsigned char** dstData, uint32_t dstBufferLength) {
+int compress(char* errStr, njt_object* input, njt_object* output) {
   int retval = 0;
   int err;
-
   tjhandle handle = NULL;
-  int flags = TJFLAG_FASTDCT;
-  int bpp = 0;
-  uint32_t dstLength = 0;
+  uint32_t length = 0;
+  unsigned long output_length;
 
-  // Figure out bpp from format (needed to calculate output buffer size)
-  switch (format) {
-    case FORMAT_GRAY:
-      bpp = 1;
-      break;
-    case FORMAT_RGB:
-    case FORMAT_BGR:
-      bpp = 3;
-      break;
-    case FORMAT_RGBX:
-    case FORMAT_BGRX:
-    case FORMAT_XRGB:
-    case FORMAT_XBGR:
-    case FORMAT_RGBA:
-    case FORMAT_BGRA:
-    case FORMAT_ABGR:
-    case FORMAT_ARGB:
-      bpp = 4;
-      break;
-    default:
-      _throw("Invalid input format");
-  }
-
-  switch (jpegSubsamp) {
-    case SAMP_444:
-    case SAMP_422:
-    case SAMP_420:
-    case SAMP_GRAY:
-    case SAMP_440:
-      break;
-    default:
-      _throw("Invalid subsampling method");
-  }
-
-  // Set up buffers if required
-  dstLength = tjBufSize(width, height, jpegSubsamp);
-  if (dstBufferLength > 0) {
-    if (dstLength > dstBufferLength) {
-      _throw("Pontentially insufficient output buffer");
-    }
-    flags |= TJFLAG_NOREALLOC;
-  }
-
+  // Init libjpeg-turbo compress
   handle = tjInitCompress();
   if (handle == NULL) {
     _throw(tjGetErrorStr());
   }
 
-  err = tjCompress2(handle, srcData, width, stride * bpp, height, format, dstData, jpegSize, jpegSubsamp, quality, flags);
+  // Figure out buffer size
+  length = tjBufSize(input->width, input->height, input->subsampling);
+
+  // If we have pre allocated output buffer check it's length
+  if (output->data->length > 0) {
+    if (output->data->length < length) {
+      _throw("Output buffer too small");
+    }
+  }
+  // If there is no pre allocated output buffer, allocate one
+  else {
+    output->data->buffer = (unsigned char*)malloc(length * sizeof(unsigned char));
+    output->data->length = length;
+    output->data->used = length;
+    output->data->created = true;
+  }
+
+  output_length = output->data->length;
+
+  err = tjCompress2(handle, input->data->buffer, input->width, input->pitch * input->bpp, input->height, input->format, &output->data->buffer, &output_length, input->subsampling, input->quality, TJFLAG_NOREALLOC);
 
   if (err != 0) {
     _throw(tjGetErrorStr());
   }
+
+  output->data->used = output_length;
 
   bailout:
   if (handle != NULL) {
@@ -82,10 +49,10 @@ int compress(unsigned char* srcData, uint32_t format, uint32_t width, uint32_t s
     if (err != 0 && retval == 0) {
       snprintf(errStr, NJT_MSG_LENGTH_MAX, "%s", tjGetErrorStr());
     }
+  }
 
-    if (dstBufferLength > 0 && dstData != NULL) {
-      tjFree(*dstData);
-    }
+  if (retval != 0 && output->data->created) {
+    free(output->data->buffer);
   }
 
   return retval;
@@ -93,258 +60,202 @@ int compress(unsigned char* srcData, uint32_t format, uint32_t width, uint32_t s
 
 class CompressWorker : public AsyncWorker {
   public:
-    CompressWorker(Callback *callback, unsigned char* srcData, uint32_t format, uint32_t width, uint32_t stride, uint32_t height, uint32_t jpegSubsamp, int quality, Local<Object> &dstObject, unsigned char* dstData, uint32_t dstBufferLength) :
+    CompressWorker(char* errStr, Callback *callback, njt_object* input, njt_object* output, Local<Object>& output_obj) :
       AsyncWorker(callback),
-      srcData(srcData),
-      format(format),
-      width(width),
-      stride(stride),
-      height(height),
-      jpegSubsamp(jpegSubsamp),
-      quality(quality),
-      jpegSize(0),
-      dstData(dstData),
-      dstBufferLength(dstBufferLength) {
-        if (dstBufferLength > 0) {
-          SaveToPersistent("dstObject", dstObject);
-        }
+      errStr(errStr),
+      input(input),
+      output(output) {
+        SaveToPersistent("output_obj", output_obj);
       }
     ~CompressWorker() {}
 
     void Execute () {
       int err;
-
-      err = compress(
-          this->srcData,
-          this->format,
-          this->width,
-          this->stride,
-          this->height,
-          this->jpegSubsamp,
-          this->quality,
-          &this->jpegSize,
-          &this->dstData,
-          this->dstBufferLength);
+      err = compress(errStr, input, output);
 
       if(err != 0) {
+        del_njt_object(this->input);
+        del_njt_object(this->output);
         SetErrorMessage(errStr);
       }
     }
 
     void HandleOKCallback () {
       Local<Object> obj = New<Object>();
-      Local<Object> dstObject;
+      Local<Object> output_obj = GetFromPersistent("output_obj").As<Object>();
 
-      if (this->dstBufferLength > 0) {
-        dstObject = GetFromPersistent("dstObject").As<Object>();
-      }
-      else {
-        dstObject = NewBuffer((char*)this->dstData, this->jpegSize, compressBufferFreeCallback, NULL).ToLocalChecked();
+      if (this->output->data->created) {
+        output_obj = NewBuffer((char*)this->output->data->buffer, this->output->data->used).ToLocalChecked();
       }
 
-      obj->Set(New("data").ToLocalChecked(), dstObject);
-      obj->Set(New("size").ToLocalChecked(), New((uint32_t) this->jpegSize));
+      obj->Set(New("length").ToLocalChecked(), New(this->output->data->used));
+      obj->Set(New("data").ToLocalChecked(), output_obj);
+      obj->Set(New("subsampling").ToLocalChecked(), New(this->input->subsampling));
 
-      v8::Local<v8::Value> argv[] = {
-        Nan::Null(),
+      Local<Value> argv[] = {
+        Null(),
         obj
       };
 
       callback->Call(2, argv);
+
+      del_njt_object(this->input);
+      del_njt_object(this->output);
     }
 
   private:
-    unsigned char* srcData;
-    uint32_t format;
-    uint32_t width;
-    uint32_t stride;
-    uint32_t height;
-    uint32_t jpegSubsamp;
-    int quality;
-    unsigned long jpegSize;
-    unsigned char* dstData;
-    uint32_t dstBufferLength;
+    char* errStr;
+    njt_object* input;
+    njt_object* output;
 };
 
-void compressParse(const Nan::FunctionCallbackInfo<Value>& info, bool async) {
+NAN_METHOD(Compress) {
   int retval = 0;
-  int cursor = 0;
+  int err;
+  static char errStr[NJT_MSG_LENGTH_MAX] = "No error";
 
   // Input
   Callback *callback = NULL;
-  Local<Object> srcObject;
-  unsigned char* srcData = NULL;
-  Local<Object> dstObject;
-  uint32_t dstBufferLength = 0;
-  unsigned char* dstData = NULL;
+  njt_object* input = new_njt_object();
   Local<Object> options;
-  Local<Value> formatObject;
-  uint32_t format = 0;
-  Local<Value> sampObject;
-  uint32_t jpegSubsamp = NJT_DEFAULT_SUBSAMPLING;
-  Local<Value> widthObject;
-  uint32_t width = 0;
-  Local<Value> heightObject;
-  uint32_t height = 0;
-  Local<Value> strideObject;
-  uint32_t stride;
-  Local<Value> qualityObject;
-  int quality = NJT_DEFAULT_QUALITY;
+  Local<Value> subsampling_obj, quality_obj, pitch_obj;
 
   // Output
-  unsigned long jpegSize = 0;
+  Local<Object> output_obj;
+
+  njt_object* output = new_njt_object();
+
+  if (input == NULL || output == NULL) {
+    _throw("Unable to allocate memory");
+  }
+  input->data->read_only = true;
 
   // Try to find callback here, so if we want to throw something we can use callback's err
-  if (async) {
-    if (info[info.Length() - 1]->IsFunction()) {
-      callback = new Callback(info[info.Length() - 1].As<Function>());
-    }
-    else {
-      _throw("Missing callback");
-    }
+  if (info[info.Length() - 1]->IsFunction()) {
+    callback = new Callback(info[info.Length() - 1].As<Function>());
   }
 
-  if ((async && info.Length() < 3) || (!async && info.Length() < 2)) {
+  if ((callback != NULL && info.Length() < 3) || (callback == NULL && info.Length() < 2)) {
     _throw("Too few arguments");
   }
 
-  // Input buffer
-  srcObject = info[cursor++].As<Object>();
-  if (!Buffer::HasInstance(srcObject)) {
-    _throw("Invalid source buffer");
+  err = parse_input(errStr, info, input, output, &options, &output_obj);
+  if (err != 0) {
+    retval = -1;
+    goto bailout;
   }
-  srcData = (unsigned char*) Buffer::Data(srcObject);
 
-  // Options
-  options = info[cursor++].As<Object>();
-
-  // Check if options we just got is actually the destination buffer
-  // If it is, pull new object from info and set that as options
-  if (Buffer::HasInstance(options) && info.Length() > cursor) {
-    dstObject = options;
-    options = info[cursor++].As<Object>();
-    dstBufferLength = Buffer::Length(dstObject);
-    dstData = (unsigned char*) Buffer::Data(dstObject);
+  // Options for compress are not optional
+  if (options->IsUndefined()) {
+    _throw("Options must be defined");
   }
 
   if (!options->IsObject()) {
     _throw("Options must be an object");
   }
 
-  // Format of input buffer
-  formatObject = options->Get(New("format").ToLocalChecked());
-  if (formatObject->IsUndefined()) {
-    _throw("Missing format");
+  err = parse_format(errStr, options, input, output);
+  if (err != 0) {
+    retval = -1;
+    goto bailout;
   }
-  if (!formatObject->IsUint32()) {
-    _throw("Invalid input format");
+
+  err = parse_dimensions(errStr, options, input);
+  if (err != 0) {
+    retval = -1;
+    goto bailout;
   }
-  format = formatObject->Uint32Value();
+
+  // Check that incoming buffer has enough data
+  if ((uint32_t)input->width * input->height * input->bpp > input->data->length) {
+    _throw("Input buffer too small");
+  }
 
   // Subsampling
-  sampObject = options->Get(New("subsampling").ToLocalChecked());
-  if (!sampObject->IsUndefined()) {
-    if (!sampObject->IsUint32()) {
-      _throw("Invalid subsampling method");
+  subsampling_obj = options->Get(New("subsampling").ToLocalChecked());
+  if (!subsampling_obj->IsUndefined()) {
+    if (!subsampling_obj->IsInt32()) {
+      _throw("Invalid subsampling");
     }
-    jpegSubsamp = sampObject->Uint32Value();
-  }
+    input->subsampling = check_subsampling_mode(subsampling_obj->Int32Value());
 
-  // Width
-  widthObject = options->Get(New("width").ToLocalChecked());
-  if (widthObject->IsUndefined()) {
-    _throw("Missing width");
-  }
-  if (!widthObject->IsUint32()) {
-    _throw("Invalid width value");
-  }
-  width = widthObject->Uint32Value();
-
-  // Height
-  heightObject = options->Get(New("height").ToLocalChecked());
-  if (heightObject->IsUndefined()) {
-    _throw("Missing height");
-  }
-  if (!heightObject->IsUint32()) {
-    _throw("Invalid height value");
-  }
-  height = heightObject->Uint32Value();
-
-  // Stride
-  strideObject = options->Get(New("stride").ToLocalChecked());
-  if (!strideObject->IsUndefined()) {
-    if (!strideObject->IsUint32()) {
-      _throw("Invalid stride value");
+    if (input->subsampling == -1) {
+      _throw("Invalid subsampling");
     }
-    stride = strideObject->Uint32Value();
   }
   else {
-    stride = width;
+    // By default we set subsampling to NJT_DEFAULT_SUBSAMPLING
+    // But in case subsampling is not defined and format/bpp is grayscale we can use SAMP_GRAY
+    if (input->bpp == 1) {
+      input->subsampling = SAMP_GRAY;
+    }
   }
 
   // Quality
-  qualityObject = options->Get(New("quality").ToLocalChecked());
-  if (!qualityObject->IsUndefined()) {
-    if (!qualityObject->IsUint32() || qualityObject->Uint32Value() > 100) {
-      _throw("Invalid quality value");
+  quality_obj = options->Get(New("quality").ToLocalChecked());
+  if (!quality_obj->IsUndefined()) {
+    if (!quality_obj->IsInt32()) {
+      _throw("Invalid quality");
     }
-    quality = qualityObject->Uint32Value();
+    input->quality = quality_obj->Int32Value();
+
+    if (input->quality <= 0 || input->quality > 100) {
+      _throw("Invalid quality");
+    }
   }
 
-  // Do either async or sync compress
-  if (async) {
-    AsyncQueueWorker(new CompressWorker(callback, srcData, format, width, stride, height, jpegSubsamp, quality, dstObject, dstData, dstBufferLength));
-    return;
+  // Pitch
+  pitch_obj = options->Get(New("pitch").ToLocalChecked());
+  if (!pitch_obj->IsUndefined()) {
+    if (!pitch_obj->IsInt32()) {
+      _throw("Invalid pitch");
+    }
+    input->pitch = pitch_obj->Int32Value();
+
+    if (input->pitch < input->width) {
+      _throw("Invalid pitch");
+    }
+  }
+
+  if (callback != NULL) {
+    AsyncQueueWorker(new CompressWorker(errStr, callback, input, output, output_obj));
   }
   else {
-    retval = compress(
-        srcData,
-        format,
-        width,
-        stride,
-        height,
-        jpegSubsamp,
-        quality,
-        &jpegSize,
-        &dstData,
-        dstBufferLength);
+    retval = compress(errStr, input, output);
 
-    if(retval != 0) {
-      // Compress will set the errStr
+    if (retval != 0) {
+      // compress will set the errStr
       goto bailout;
     }
     Local<Object> obj = New<Object>();
-    if (dstBufferLength == 0) {
-      dstObject = NewBuffer((char*)dstData, jpegSize, compressBufferFreeCallback, NULL).ToLocalChecked();
+
+    if (output->data->created) {
+      output_obj = NewBuffer((char*)output->data->buffer, output->data->used).ToLocalChecked();
     }
 
-    obj->Set(New("data").ToLocalChecked(), dstObject);
-    obj->Set(New("size").ToLocalChecked(), New((uint32_t) jpegSize));
+    obj->Set(New("data").ToLocalChecked(), output_obj);
+    obj->Set(New("subsampling").ToLocalChecked(), New(input->subsampling));
+    obj->Set(New("length").ToLocalChecked(), New(output->data->used));
+
     info.GetReturnValue().Set(obj);
-    return;
+    del_njt_object(input);
+    del_njt_object(output);
   }
 
   // If we have error throw error or call callback with error
   bailout:
   if (retval != 0) {
+    del_njt_object(input);
+    del_njt_object(output);
+
     if (NULL == callback) {
       ThrowError(TypeError(errStr));
     }
     else {
       Local<Value> argv[] = {
-        New(errStr).ToLocalChecked()
+        Error(errStr)
       };
       callback->Call(1, argv);
     }
-    return;
   }
 }
-
-NAN_METHOD(CompressSync) {
-  compressParse(info, false);
-}
-
-NAN_METHOD(Compress) {
-  compressParse(info, true);
-}
-

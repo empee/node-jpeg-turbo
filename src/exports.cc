@@ -1,36 +1,44 @@
 #include "exports.h"
 
 NAN_MODULE_INIT(InitAll) {
-  Nan::Set(target, Nan::New("bufferSize").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<v8::FunctionTemplate>(BufferSize)).ToLocalChecked());
-  Nan::Set(target, Nan::New("compressSync").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<v8::FunctionTemplate>(CompressSync)).ToLocalChecked());
-  Nan::Set(target, Nan::New("compress").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<v8::FunctionTemplate>(Compress)).ToLocalChecked());
-  Nan::Set(target, Nan::New("decompressSync").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<v8::FunctionTemplate>(DecompressSync)).ToLocalChecked());
-  Nan::Set(target, Nan::New("decompress").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<v8::FunctionTemplate>(Decompress)).ToLocalChecked());
-  Nan::Set(target, Nan::New("FORMAT_RGB").ToLocalChecked(), Nan::New(FORMAT_RGB));
-  Nan::Set(target, Nan::New("FORMAT_BGR").ToLocalChecked(), Nan::New(FORMAT_BGR));
-  Nan::Set(target, Nan::New("FORMAT_RGBX").ToLocalChecked(), Nan::New(FORMAT_RGBX));
-  Nan::Set(target, Nan::New("FORMAT_BGRX").ToLocalChecked(), Nan::New(FORMAT_BGRX));
-  Nan::Set(target, Nan::New("FORMAT_XRGB").ToLocalChecked(), Nan::New(FORMAT_XRGB));
-  Nan::Set(target, Nan::New("FORMAT_XBGR").ToLocalChecked(), Nan::New(FORMAT_XBGR));
-  Nan::Set(target, Nan::New("FORMAT_GRAY").ToLocalChecked(), Nan::New(FORMAT_GRAY));
-  Nan::Set(target, Nan::New("FORMAT_RGBA").ToLocalChecked(), Nan::New(FORMAT_RGBA));
-  Nan::Set(target, Nan::New("FORMAT_BGRA").ToLocalChecked(), Nan::New(FORMAT_BGRA));
-  Nan::Set(target, Nan::New("FORMAT_ABGR").ToLocalChecked(), Nan::New(FORMAT_ABGR));
-  Nan::Set(target, Nan::New("FORMAT_ARGB").ToLocalChecked(), Nan::New(FORMAT_ARGB));
-  Nan::Set(target, Nan::New("SAMP_444").ToLocalChecked(), Nan::New(SAMP_444));
-  Nan::Set(target, Nan::New("SAMP_422").ToLocalChecked(), Nan::New(SAMP_422));
-  Nan::Set(target, Nan::New("SAMP_420").ToLocalChecked(), Nan::New(SAMP_420));
-  Nan::Set(target, Nan::New("SAMP_GRAY").ToLocalChecked(), Nan::New(SAMP_GRAY));
-  Nan::Set(target, Nan::New("SAMP_440").ToLocalChecked(), Nan::New(SAMP_440));
-  Nan::Set(target, Nan::New("SCALE_FAST").ToLocalChecked(), Nan::New(SCALE_FAST));
-  Nan::Set(target, Nan::New("SCALE_NEAREST").ToLocalChecked(), Nan::New(SCALE_NEAREST));
-  Nan::Set(target, Nan::New("SCALE_BILINEAR").ToLocalChecked(), Nan::New(SCALE_BILINEAR));
-  Nan::Set(target, Nan::New("SCALE_BICUBIC").ToLocalChecked(), Nan::New(SCALE_BICUBIC));
+  Set(target, New("bufferSize").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(BufferSize)).ToLocalChecked());
+  Set(target, New("compress").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(Compress)).ToLocalChecked());
+  Set(target, New("decompress").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(Decompress)).ToLocalChecked());
+  Set(target, New("getBpp").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(GetBpp)).ToLocalChecked());
+  Set(target, New("crop").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(Crop)).ToLocalChecked());
+  Set(target, New("scale").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(Scale)).ToLocalChecked());
+  Set(target, New("header").ToLocalChecked(),
+    GetFunction(New<FunctionTemplate>(Header)).ToLocalChecked());
+  Set(target, New("FORMAT_RGB").ToLocalChecked(), New(FORMAT_RGB));
+  Set(target, New("FORMAT_BGR").ToLocalChecked(), New(FORMAT_BGR));
+  Set(target, New("FORMAT_RGBX").ToLocalChecked(), New(FORMAT_RGBX));
+  Set(target, New("FORMAT_BGRX").ToLocalChecked(), New(FORMAT_BGRX));
+  Set(target, New("FORMAT_XRGB").ToLocalChecked(), New(FORMAT_XRGB));
+  Set(target, New("FORMAT_XBGR").ToLocalChecked(), New(FORMAT_XBGR));
+  Set(target, New("FORMAT_GRAY").ToLocalChecked(), New(FORMAT_GRAY));
+  Set(target, New("FORMAT_RGBA").ToLocalChecked(), New(FORMAT_RGBA));
+  Set(target, New("FORMAT_BGRA").ToLocalChecked(), New(FORMAT_BGRA));
+  Set(target, New("FORMAT_ABGR").ToLocalChecked(), New(FORMAT_ABGR));
+  Set(target, New("FORMAT_ARGB").ToLocalChecked(), New(FORMAT_ARGB));
+  Set(target, New("SAMP_444").ToLocalChecked(), New(SAMP_444));
+  Set(target, New("SAMP_422").ToLocalChecked(), New(SAMP_422));
+  Set(target, New("SAMP_420").ToLocalChecked(), New(SAMP_420));
+  Set(target, New("SAMP_GRAY").ToLocalChecked(), New(SAMP_GRAY));
+  Set(target, New("SAMP_440").ToLocalChecked(), New(SAMP_440));
+  Set(target, New("SCALE_FAST").ToLocalChecked(), New(SCALE_FAST));
+  Set(target, New("SCALE_NEAREST").ToLocalChecked(), New(SCALE_NEAREST));
+  Set(target, New("SCALE_BILINEAR").ToLocalChecked(), New(SCALE_BILINEAR));
+  Set(target, New("SCALE_BICUBIC").ToLocalChecked(), New(SCALE_BICUBIC));
+  Set(target, New("DEFAULT_FORMAT").ToLocalChecked(), New(NJT_DEFAULT_FORMAT));
+  Set(target, New("DEFAULT_SUBSAMPLING").ToLocalChecked(), New(NJT_DEFAULT_SUBSAMPLING));
+  Set(target, New("DEFAULT_QUALITY").ToLocalChecked(), New(NJT_DEFAULT_QUALITY));
+  Set(target, New("DEFAULT_SCALE").ToLocalChecked(), New(NJT_DEFAULT_SCALE));
 }
 
 // There is no semi-colon after NODE_MODULE as it's not a function (see node.h).

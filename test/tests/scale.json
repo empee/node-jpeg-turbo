@@ -1,0 +1,115 @@
+{
+  "jahne": [
+    {
+      "params": { "scale": { "width": 256 } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "*": { "width": 256, "height": 256 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "width": 128 } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "*": { "width": 128, "height": 128 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "width": 150 } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "SCALE_FAST": { "width": 128, "height": 128 },
+        "*": { "width": 150, "height": 150 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "width": 16 } },
+      "success": ["SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "*": { "width": 16, "height": 16 }
+      },
+      "fail": ["SCALE_FAST"],
+      "failReason": {
+        "SCALE_FAST": { "type": "Error", "key": "message", "value": "Scaling width too small"}
+      }
+    },
+    {
+      "params": { "scale": { "width": 2100 } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "SCALE_FAST": { "width": 2048, "height": 2048 },
+        "*": { "width": 2100, "height": 2100 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "width": 256, "height": 128, "keepAspect": true } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "*": { "width": 128, "height": 128 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "width": 256, "height": 128, "keepAspect": false } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "SCALE_FAST": { "width": 128, "height": 128 },
+        "*": { "width": 256, "height": 128 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "width": 0, "height": 16, "keepAspect": false } },
+      "success": ["SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "*": { "width": 1024, "height": 16 }
+      },
+      "fail": ["SCALE_FAST"],
+      "failReason": {
+        "SCALE_FAST": { "type": "Error", "key": "message", "value": "Scaling height too small"}
+      }
+    },
+    {
+      "params": { "scale": { "width": -10, "height": 16, "keepAspect": false } },
+      "success": ["SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "*": { "width": 1014, "height": 16 }
+      },
+      "fail": ["SCALE_FAST"],
+      "failReason": {
+        "SCALE_FAST": { "type": "Error", "key": "message", "value": "Scaling height too small"}
+      }
+    },
+    {
+      "params": { "scale": { "height": -100, "keepAspect": false } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "SCALE_FAST": { "width": 896, "height": 896 },
+        "*": { "width": 1024, "height": 924 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "height": -256, "keepAspect": false } },
+      "success": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "successReturn": {
+        "SCALE_FAST": { "width": 768, "height": 768 },
+        "*": { "width": 1024, "height": 768 }
+      },
+      "fail": []
+    },
+    {
+      "params": { "scale": { "height": -1024, "keepAspect": false } },
+      "success": [],
+      "successReturn": {},
+      "fail": ["SCALE_FAST", "SCALE_NEAREST", "SCALE_BILINEAR", "SCALE_BICUBIC"],
+      "failReason": {
+        "*": { "type": "Error", "key": "message", "value": "Scaling height too small" }
+      }
+    }
+  ]
+}
